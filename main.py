@@ -4,11 +4,13 @@ from flask import Flask
 import telebot
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-# توکن ربات تلگرام
-TOKEN = "8957700257:AAG0-38KR0I-rNZzCdP7o8nKZymoD83qRAg"
+# -------------------------------------------------------------
+# توکن ربات مدیریت نولکس
+TOKEN = "8875197695:AAHZofQPyzAzNgp8UT4Ka6dOrKwUBipi1WQ"
 bot = telebot.TeleBot(TOKEN)
+# -------------------------------------------------------------
 
-# --- سرور وب برای تایید سلامت (Health Check) در Render ---
+# سرور وب برای تایید سلامت سرویس در Render
 app = Flask(__name__)
 
 
@@ -18,18 +20,19 @@ def home():
 
 
 def run_web():
-  # خواندن پورت اختصاص داده شده توسط سیستم یا استفاده از پورت 10000 پیش‌فرض
+  # دریافت پورت اختصاصی از محیط اجرای Render
   port = int(os.environ.get("PORT", 10000))
   app.run(host="0.0.0.0", port=port)
 
 
 def keep_alive():
+  # اجرای سرور وب در یک گرایش (Thread) جداگانه تا مزاحم کارکرد ربات نشود
   t = threading.Thread(target=run_web)
   t.daemon = True
   t.start()
 
 
-# --- دیتابیس حافظه‌ای ساده ---
+# حافظه موقت دیتابیس ربات
 filtered_words = {}
 group_members = {}
 user_states = {}
@@ -58,7 +61,7 @@ def get_main_panel_keyboard():
   return markup
 
 
-# ردیابی پیام‌ها و کلمات فیلتر شده
+# ردیابی پیام‌ها و بررسی کلمات فیلترشده
 @bot.message_handler(
     func=lambda message: True,
     content_types=["text", "photo", "sticker", "new_chat_members"],
@@ -79,6 +82,8 @@ def track_members_and_messages(message):
     text = message.text.strip()
     user_id = user.id
     words = filtered_words.get(chat_id, [])
+
+    # چک کردن کلمات ممنوعه
     for w in words:
       if w in text.lower():
         try:
@@ -93,6 +98,7 @@ def track_members_and_messages(message):
           pass
         return
 
+    # افزودن کلمه جدید به لیست فیلتر
     if user_id in user_states and user_states[user_id].get(
         "action"
     ) == "wait_filter":
@@ -109,7 +115,7 @@ def track_members_and_messages(message):
       del user_states[user_id]
 
 
-# پیوستن به گروه و دستور start
+# دستور start در پیوی
 @bot.message_handler(commands=["start"], chat_types=["private"])
 def send_welcome_private(message):
   bot_username = bot.get_me().username
@@ -124,6 +130,7 @@ def send_welcome_private(message):
   bot.reply_to(message, text, reply_markup=markup, parse_mode="Markdown")
 
 
+# عضویت ربات در گروه
 @bot.message_handler(content_types=["new_chat_members"])
 def on_join_group(message):
   bot_id = bot.get_me().id
@@ -135,7 +142,7 @@ def on_join_group(message):
       )
 
 
-# کلیک روی دکمه‌های شیشه‌ای
+# مدیریت کلیک دکمه‌ها
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callbacks(call):
   chat_id = call.message.chat.id
@@ -240,11 +247,9 @@ def handle_callbacks(call):
     )
 
 
-# --- اجرای مستقیم ---
+# --- اجرای برنامه ---
 if __name__ == "__main__":
-  # روشن کردن سرور وب در پس‌زمینه
   keep_alive()
-  print("Admin Bot is running...")
-  # اجرای اتصال مداوم به تلگرام
+  print("Nolex Admin Bot is starting...")
   bot.infinity_polling(skip_pending_updates=True)
   
